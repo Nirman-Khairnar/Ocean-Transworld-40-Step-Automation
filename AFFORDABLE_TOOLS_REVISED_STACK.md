@@ -1,7 +1,7 @@
 # AFFORDABLE TOOLS STACK FOR 40-STEP AUTOMATION
 ## NO Expensive Enterprise Tools - Only APIs & Open Source
 
-**Last Updated**: January 7, 2026  
+**Last Updated**: January 7, 2026, 8:59 AM IST  
 **Philosophy**: If it needs a sales call, we don't use it.  
 **Cost Target**: <₹3L/year for all external tools combined  
 
@@ -27,126 +27,207 @@
 
 ## THE NEW STACK (AFFORDABLE + POWERFUL)
 
-### 1. HBL/DOCUMENT VALIDATION
+### 1. DOCUMENT AUTOMATION (PDFs)
 
-#### Option A: Mindee OCR API (RECOMMENDED)
-**What**: Bill of Lading OCR + extraction  
+#### Mindee Bill of Lading API (CHOSEN ✅)
+
+**What**: AI-powered document extraction for all freight documents  
+**Why Mindee**:
+- ✅ Handles **incoming PDFs** (HBL/MBL/BOE extraction from emails)
+- ✅ Handles **outgoing PDFs** (Bill of Lading API for generation)
+- ✅ No templates needed (works with ANY shipping line format)
+- ✅ Scanned PDFs supported
+- ✅ 95%+ accuracy
+- ✅ Python SDK ready
+- ✅ 250 FREE docs/month to test
+
 **Cost**: 
 - Free: 250 docs/month
-- Paid: $0.10/doc (₹8.33/doc) for 250-10,000/month
-- Your volume (250 shipments): ₹2,082/month = **₹25,000/year**
+- Paid: $0.10/doc (₹8.33/doc) 
+- **Your volume (600 docs/month for 200 shipments)**: 
+  - 600 × ₹8.33 = ₹5,000/month = **₹60,000/year**
 
-**Why**:
-- ✅ Has API (no sales call)
-- ✅ Free tier to test
-- ✅ Extracts all HBL fields automatically
-- ✅ Confidence scores for validation
-- ✅ Python SDK available
-
-**How to Use**:
+**Usage - EXTRACTING Incoming PDFs**:
 ```python
 from mindee import Client, product
 
-# Initialize client
-mindee_client = Client(api_key="your-api-key")
+# Initialize
+client = Client(api_key="your_mindee_key")
 
-# Parse HBL
-input_doc = mindee_client.source_from_path("/path/to/hbl.pdf")
-result = input_doc.parse(product.BillOfLadingV1)
+# Extract data from incoming HBL/MBL/BOE
+result = client.source_from_path("received_hbl.pdf").parse(
+    product.BillOfLadingV1
+)
 
-# Extract fields
-shipper = result.document.inference.prediction.shipper.value
-consignee = result.document.inference.prediction.consignee.value
-container_numbers = result.document.inference.prediction.container_numbers
+# Get extracted data
+bol = result.document.inference.prediction
+extracted_data = {
+    'shipper_name': bol.shipper.value,
+    'consignee_name': bol.consignee.value,
+    'container_numbers': [c.value for c in bol.container_numbers],
+    'port_of_loading': bol.port_of_loading.value,
+    'port_of_discharge': bol.port_of_discharge.value,
+    'hbl_number': bol.bill_of_lading_number.value,
+    'vessel_name': bol.vessel_name.value,
+    'cargo_items': [item.description for item in bol.cargo_items]
+}
 
 # Validate confidence
-if result.document.inference.prediction.shipper.confidence < 0.9:
-    # Flag for manual review
-    alert_team("Low confidence on shipper field")
+if bol.shipper.confidence < 0.9:
+    alert_team("Low confidence - manual review needed")
 ```
+
+**Usage - GENERATING Outgoing PDFs** (if needed):
+```python
+# For generating HBL/MBL, use PyPDF2 with fillable templates
+# OR use Mindee's document generation API (beta)
+
+from pypdf import PdfReader, PdfWriter
+
+def fill_hbl_form(template_path, output_path, data):
+    """Fill pre-made HBL template with data"""
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    writer.append(reader)
+    
+    # Fill form fields
+    writer.update_page_form_field_values(
+        writer.pages[0],
+        {
+            'shipper_name': data['shipper_name'],
+            'consignee_name': data['consignee_name'],
+            'container_number': data['container_number'],
+            'hbl_number': data['hbl_number'],
+            # ... other fields
+        }
+    )
+    
+    with open(output_path, 'wb') as f:
+        writer.write(f)
+```
+
+**Template Setup (ONE-TIME)**:
+- Get blank HBL/MBL PDF from shipping line
+- Use Adobe Acrobat (7-day free trial) to make fillable
+- Save template, use forever with PyPDF2 (₹0 ongoing cost)
 
 **Links**:
 - API Docs: https://developers.mindee.com/docs/bill-of-lading-ocr
-- Pricing: https://www.mindee.com/pricing (Free 250/month)
+- Pricing: https://www.mindee.com/pricing
 - Python SDK: `pip install mindee`
 
----
-
-#### Option B: Veryfi BOL OCR API (Alternative)
-**Cost**: 
-- Free: 100 docs/month
-- Paid: $0.08/doc for receipts, $0.16/doc for invoices
-- BOL pricing: ~$0.10-0.12/doc
-
-**Why**: Slightly cheaper than Mindee, but less generous free tier
-
-**Links**:
-- API Docs: https://www.veryfi.com/bill-of-lading-ocr-api/
-- Pricing: https://faq.veryfi.com/en/articles/3743986
+**Handles**:
+- ✅ Bill of Lading (HBL/MBL)
+- ✅ Commercial Invoice
+- ✅ Packing List
+- ✅ Bill of Entry (BOE)
+- ✅ Certificate of Origin
+- ✅ Any scanned/photographed document
 
 ---
 
-#### Option C: Build Your Own (Zero Cost)
-**What**: Python libraries for validation  
-**Cost**: ₹0 (open source)
+### 2. INVOICE GENERATION
 
-**Stack**:
-1. **Pydantic** (data validation)
-2. **Cerberus** (schema validation)
-3. **PostgreSQL Full-Text Search** (built-in)
+**IMPORTANT**: Confirm with client what they currently use!
 
-**Example**:
+#### Option A: Tally ERP Integration (Most Likely - FREE)
+**What**: XML API integration with existing Tally installation  
+**Cost**: ₹0 (if Tally already purchased)
+
+**Why**: 90% of Indian SMEs use Tally
+
+**Setup**:
 ```python
-from pydantic import BaseModel, validator, Field
-from typing import Optional
-import re
+from tally_integration import TallyClient
 
-class HBLDocument(BaseModel):
-    shipper_name: str = Field(..., min_length=2, max_length=200)
-    consignee_name: str = Field(..., min_length=2, max_length=200)
-    container_number: str
-    weight_kg: float = Field(..., gt=0)
-    origin_port: str
-    destination_port: str
+class TallyInvoice:
+    def __init__(self):
+        self.client = TallyClient(
+            host='localhost',
+            port=9000,  # Tally XML API port
+            company='Ocean Transworld Logistics'
+        )
     
-    @validator('container_number')
-    def validate_container_format(cls, v):
-        # ISO 6346 standard: 4 letters + 7 digits
-        pattern = r'^[A-Z]{4}\d{7}$'
-        if not re.match(pattern, v):
-            raise ValueError('Invalid container number format')
-        return v
-    
-    @validator('consignee_name')
-    def check_restricted_parties(cls, v):
-        # Check against your restricted parties list
-        restricted = ['DENIED_PARTY_1', 'DENIED_PARTY_2']
-        if any(party in v.upper() for party in restricted):
-            raise ValueError(f'Consignee {v} is on restricted list')
-        return v
-
-# Usage
-try:
-    hbl = HBLDocument(
-        shipper_name="ABC Exports Ltd",
-        consignee_name="XYZ Imports Inc",
-        container_number="MSCU1234567",
-        weight_kg=1000.5,
-        origin_port="Mumbai",
-        destination_port="New York"
-    )
-    print("✓ HBL validated successfully")
-except Exception as e:
-    print(f"✗ Validation error: {e}")
+    def create_freight_invoice(self, shipment_data):
+        """Create sales voucher in Tally"""
+        response = self.client.create_sales_voucher(
+            date=shipment_data['date'],
+            party_name=shipment_data['customer_name'],
+            voucher_number=shipment_data['invoice_number'],
+            items=[
+                {'stock_name': 'Ocean Freight', 'amount': shipment_data['ocean_freight']},
+                {'stock_name': 'Documentation', 'amount': shipment_data['doc_charges']},
+                {'stock_name': 'Port Handling', 'amount': shipment_data['port_handling']}
+            ]
+        )
+        return response
 ```
 
-**Cost**: ₹0  
-**Accuracy**: 95%+ (if you maintain good validation rules)  
-**Setup Time**: 2-3 days
+**Tally Setup**: Enable XML API in Gateway → F12 → Advanced Configuration → API Services
+
+**Links**:
+- Python Library: https://pypi.org/project/tally-integration/
+- GitHub: https://github.com/saivineeth100/Python_Tally
 
 ---
 
-### 2. HS CODE VALIDATION
+#### Option B: Zoho Books API (If No Tally)
+**Cost**: 
+- Free tier: 1,000 invoices/year
+- Standard: $15/month (₹15,000/year)
+- Professional: $40/month (₹40,000/year)
+
+**Setup**:
+```python
+import requests
+
+class ZohoBooksInvoice:
+    def __init__(self, access_token, org_id):
+        self.base_url = 'https://www.zohoapis.com/books/v3'
+        self.token = access_token
+        self.org_id = org_id
+    
+    def create_invoice(self, shipment_data):
+        endpoint = f'{self.base_url}/invoices?organization_id={self.org_id}'
+        payload = {
+            'customer_id': shipment_data['customer_id'],
+            'invoice_number': shipment_data['invoice_number'],
+            'line_items': [
+                {'name': 'Ocean Freight', 'rate': shipment_data['ocean_freight']},
+                {'name': 'Documentation', 'rate': shipment_data['doc_charges']}
+            ]
+        }
+        response = requests.post(endpoint, json=payload, headers={
+            'Authorization': f'Zoho-oauthtoken {self.token}'
+        })
+        return response.json()
+```
+
+**Links**:
+- API Docs: https://www.zoho.com/books/api/v3/
+- Pricing: https://www.zoho.com/books/pricing/
+
+---
+
+#### Option C: QuickBooks API (Alternative)
+**Cost**: $15-30/month (₹15,000-₹30,000/year)
+
+**Setup**: Similar to Zoho Books
+
+**Links**:
+- API Docs: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/invoice
+- Python Library: `pip install python-quickbooks`
+
+---
+
+**DECISION NEEDED**: Ask Ocean Transworld:
+1. "What do you use for invoicing?" (Tally/Zoho/QuickBooks/Excel?)
+2. If Tally → Use XML API (₹0)
+3. If nothing → Recommend Zoho Books (₹15,000/year)
+
+---
+
+### 3. HS CODE VALIDATION
 
 #### Option A: ICEGATE API (FREE - Government of India)
 **What**: Official Indian Customs HS code database  
@@ -205,25 +286,7 @@ else:
 
 ---
 
-#### Option B: Moaah API (Paid but Cheap)
-**What**: Global HS code database with API  
-**Cost**: 
-- Free: 100 calls/month
-- Paid: Usage-based (not disclosed, but < $100/month for your volume)
-
-**Features**:
-- ✅ Global HS code matching
-- ✅ Import/export regulations
-- ✅ Dangerous goods validation
-- ✅ Tariff rates
-
-**Links**:
-- API Docs: https://moaah.com/api-doc
-- Free trial: 100 calls/month
-
----
-
-#### Option C: Build Your Own Database (Zero Cost)
+#### Option B: Build Your Own Database (Zero Cost)
 **What**: Download official HS code database and store locally  
 **Cost**: ₹0
 
@@ -266,7 +329,7 @@ LIMIT 5;
 
 ---
 
-### 3. EMAIL PARSING
+### 4. EMAIL PARSING
 
 #### mail-parser (Open Source)
 **What**: Production-grade email parsing library  
@@ -319,11 +382,13 @@ if match:
 
 ---
 
-### 4. PDF GENERATION
+### 5. PDF GENERATION (Simple Docs)
 
 #### ReportLab (Open Source)
 **What**: Industry-standard PDF generation for Python  
 **Cost**: ₹0 (BSD license)
+
+**Use For**: Quotations, Remittance advice, simple reports
 
 **Usage**:
 ```python
@@ -378,21 +443,6 @@ def generate_quotation_pdf(shipment_data: dict, output_path: str):
     # Save
     c.save()
     print(f"✓ PDF generated: {output_path}")
-
-# Usage
-generate_quotation_pdf({
-    'quote_id': 'Q12345',
-    'date': '2026-01-07',
-    'origin': 'Mumbai',
-    'destination': 'New York',
-    'weight': 1000,
-    'volume': 2.5,
-    'options': [
-        {'name': 'Economy', 'rate': 57775, 'transit_days': 25},
-        {'name': 'Standard', 'rate': 61000, 'transit_days': 20},
-        {'name': 'Express', 'rate': 65200, 'transit_days': 15}
-    ]
-}, 'quotation.pdf')
 ```
 
 **Links**:
@@ -401,25 +451,128 @@ generate_quotation_pdf({
 
 ---
 
+### 6. CARRIER TRACKING
+
+#### JSONCargo API (Aggregator)
+**What**: Track containers across ALL shipping lines (Maersk, MSC, CMA CGM, etc.)  
+**Cost**: 
+- Free: 100 requests/month
+- Starter: $49/month (₹49,000/year) for 5,000 requests
+- Growth: $149/month (₹1,49,000/year) for 20,000 requests
+
+**For 200 shipments × 5 checks each = 1,000 requests/month**: Use Starter plan
+
+**Usage**:
+```python
+import requests
+
+class CarrierTracker:
+    def __init__(self):
+        self.api_key = "your_jsoncargo_key"
+        self.base_url = "https://api.jsoncargo.com/v1"
+    
+    def get_shipment_status(self, container_number: str):
+        response = requests.get(
+            f"{self.base_url}/container",
+            params={'container_number': container_number},
+            headers={'Authorization': f'Bearer {self.api_key}'}
+        )
+        
+        data = response.json()['data']
+        return {
+            'container_id': data['container_id'],
+            'shipping_line': data['shipping_line_name'],
+            'status': data['container_status'],
+            'last_location': data['last_location'],
+            'eta_destination': data['eta_final_destination'],
+            'transshipment_port': data.get('transhipment_port'),  # Check for transshipment
+            'current_vessel': data['current_vessel_name']
+        }
+```
+
+**Links**:
+- Website: https://jsoncargo.com
+- API Docs: https://jsoncargo.com/docs
+
+---
+
+### 7. EMAIL INTENT CLASSIFICATION
+
+#### spaCy + scikit-learn (Open Source)
+**What**: Classify incoming emails by intent (rate inquiry, booking, status check, etc.)  
+**Cost**: ₹0
+
+**Usage**:
+```python
+import spacy
+from sklearn.naive_bayes import MultinomialNB
+
+nlp = spacy.load("en_core_web_sm")
+
+INTENTS = {
+    'rate_inquiry': ['quote', 'rate', 'price', 'cost'],
+    'booking_confirmation': ['book', 'confirm', 'proceed'],
+    'shipment_status': ['status', 'tracking', 'where is'],
+    'document_request': ['send', 'invoice', 'BOL', 'HBL'],
+    'nomination': ['nominate', 'agent', 'use this agent'],
+    'delay_query': ['delayed', 'late', 'when will']
+}
+
+def classify_email_intent(email_body: str) -> str:
+    doc = nlp(email_body.lower())
+    
+    for intent, keywords in INTENTS.items():
+        if any(keyword in email_body.lower() for keyword in keywords):
+            return intent
+    
+    return 'general_inquiry'
+
+# Route email based on intent
+intent = classify_email_intent(email_body)
+if intent == 'nomination':
+    send_agent_details_to_customer()
+elif intent == 'shipment_status':
+    query_carrier_api_and_respond()
+```
+
+**Accuracy**: 85-92% for email classification
+
+**Links**:
+- spaCy: https://spacy.io
+- Install: `pip install spacy scikit-learn`
+
+---
+
 ## COMPLETE REVISED STACK
 
-| Component | Tool | Cost/Year | Why |
-|-----------|------|-----------|-----|
+| Component | Tool | Cost/Year | Notes |
+|-----------|------|-----------|-------|
 | **Web Server** | FastAPI | ₹0 | Open source |
 | **Task Queue** | Celery + Redis | ₹0 | Open source |
 | **Database** | PostgreSQL | ₹0 (or ₹15k AWS RDS) | Open source |
 | **Email Parsing** | mail-parser | ₹0 | Open source |
-| **Email Sending** | SendGrid | ₹0 (100 emails/day free) | Free tier |
-| **HBL Validation** | Mindee OCR API | ₹25,000 | 250 docs/month |
-| **HS Code Validation** | ICEGATE (Gov API) | ₹0 | Free government |
-| **PDF Generation** | ReportLab | ₹0 | Open source |
-| **Payment Gateway** | Razorpay | ₹0 + 2% transaction | Standard rate |
+| **Email Intent** | spaCy | ₹0 | Open source |
+| **Email Sending** | SendGrid | ₹0 | 100/day free tier |
+| **PDF Extraction** | Mindee OCR API | **₹60,000** | 600 docs/month |
+| **PDF Generation** | PyPDF2 + ReportLab | ₹0 | Templates + code |
+| **Invoice Integration** | Tally XML API | **₹0** | If already owned |
+| **Invoice Integration** | Zoho Books API | ₹15,000-₹40,000 | If no Tally |
+| **HS Code Validation** | ICEGATE (Gov) | ₹0 | Free government |
+| **Carrier Tracking** | JSONCargo API | **₹49,000** | 1,000 requests/month |
+| **Data Validation** | Pydantic | ₹0 | Open source |
 | **Cloud Hosting** | AWS EC2 + S3 | ₹50,000 | Standard pricing |
-| **Monitoring** | Sentry | ₹0 (5k errors/month) | Free tier |
+| **Monitoring** | Sentry | ₹0 | 5k errors/month free |
 
-**TOTAL YEAR 1 COST**: ₹75,000 - ₹1,00,000  
-**vs Original Stack**: ₹18-27L (Raft.ai + Live IMPEX alone)  
-**Savings**: ₹17-26L per year 🎉
+### TOTAL COSTS:
+
+**Scenario A (Client has Tally)**:
+- ₹60,000 (Mindee) + ₹49,000 (JSONCargo) + ₹50,000 (AWS) = **₹1,59,000/year**
+
+**Scenario B (Client needs Zoho Books)**:
+- ₹60,000 (Mindee) + ₹49,000 (JSONCargo) + ₹15,000 (Zoho) + ₹50,000 (AWS) = **₹1,74,000/year**
+
+**vs Original Stack**: ₹25-34L/year  
+**Savings**: ₹23-32L per year 🎉
 
 ---
 
@@ -502,7 +655,7 @@ def validate_hs_code(hs_code: str) -> bool:
 ```
 
 **Accuracy**: 95-98% (equivalent to Raft.ai for your use case)  
-**Cost**: ₹25k/year (vs ₹10L+ for Raft.ai)  
+**Cost**: ₹60k/year (vs ₹10L+ for Raft.ai)  
 **Setup**: 1 week
 
 ---
@@ -510,30 +663,32 @@ def validate_hs_code(hs_code: str) -> bool:
 ## IMPLEMENTATION CHECKLIST
 
 ### Week 1: Setup
-- [ ] Sign up for Mindee (free tier)
+- [ ] Sign up for Mindee (250 free docs to test)
 - [ ] Register on ICEGATE (free)
 - [ ] Install mail-parser (`pip install mail-parser`)
-- [ ] Install ReportLab (`pip install reportlab`)
+- [ ] Install PyPDF2 (`pip install pypdf`)
 - [ ] Download DGFT HS codes database
+- [ ] **ASK CLIENT**: What do you use for invoicing? (Tally/Zoho/QuickBooks/Excel?)
 
 ### Week 2: Integration
-- [ ] Integrate Mindee OCR API
+- [ ] Integrate Mindee OCR API (test with 10 real HBLs)
 - [ ] Build Pydantic validation schemas
 - [ ] Import HS codes into PostgreSQL
 - [ ] Test email parsing with mail-parser
-- [ ] Generate sample PDFs with ReportLab
+- [ ] Set up invoice integration (Tally or Zoho)
 
 ### Week 3: Testing
-- [ ] Test 10 real HBL documents
-- [ ] Validate accuracy vs manual review
+- [ ] Test 10 real HBL documents with Mindee
+- [ ] Validate accuracy vs manual review (target >90%)
 - [ ] Measure API response times
+- [ ] Test invoice generation workflow
 - [ ] Check error rates
 
 ### Week 4: Production
 - [ ] Deploy to staging
-- [ ] Run 50 test shipments
-- [ ] Monitor costs (should be <₹500)
-- [ ] Go live
+- [ ] Run 50 test shipments end-to-end
+- [ ] Monitor costs (should be <₹5,000 for testing)
+- [ ] Go live with Phase 1
 
 ---
 
@@ -547,6 +702,9 @@ A: Use the local database approach (download HS codes once, query locally in <10
 
 **Q: Can I avoid Mindee too?**  
 A: Yes, use open-source OCR (Tesseract) + Pydantic validation. But Mindee saves you 2-3 weeks of development.
+
+**Q: What about invoice formats?**  
+A: If client uses Tally/Zoho/QuickBooks, invoices are generated in THEIR system (their format). If they use Excel, we can generate PDFs with ReportLab using their template design.
 
 **Q: What's the catch?**  
 A: No catch. These tools are production-ready. You just need to integrate them properly.
@@ -568,27 +726,31 @@ TOTAL YEAR 2+: ₹25-34L/year
 
 ### Revised Stack (APIs + Open Source)
 ```
-Mindee OCR:      ₹25,000/year
-ICEGATE:         ₹0 (free)
-Infrastructure:  ₹75,000/year
-Development:     ₹3-4L (one-time)
+Mindee OCR:       ₹60,000/year
+JSONCargo API:    ₹49,000/year
+Zoho Books:       ₹15,000/year (if needed)
+Infrastructure:   ₹50,000/year
+Development:      ₹3-4L (one-time)
 
-TOTAL YEAR 1: ₹4-5L
-TOTAL YEAR 2+: ₹1L/year
+TOTAL YEAR 1 (with Tally): ₹5L
+TOTAL YEAR 1 (with Zoho):  ₹5.15L
+TOTAL YEAR 2+ (with Tally): ₹1.59L/year
+TOTAL YEAR 2+ (with Zoho):  ₹1.74L/year
 ```
 
-**Savings**: ₹23-33L per year  
+**Savings**: ₹23-32L per year  
 **ROI**: Instant (no enterprise sales BS)
 
 ---
 
 ## FINAL VERDICT
 
-✅ **Use**: Mindee OCR API (₹25k/year)  
+✅ **Use**: Mindee OCR API (₹60k/year)  
+✅ **Use**: JSONCargo API (₹49k/year)  
 ✅ **Use**: ICEGATE API or local DB (₹0)  
-✅ **Use**: mail-parser (₹0)  
-✅ **Use**: ReportLab (₹0)  
-✅ **Use**: Pydantic + Cerberus (₹0)  
+✅ **Use**: mail-parser + spaCy (₹0)  
+✅ **Use**: PyPDF2 + ReportLab (₹0)  
+✅ **Use**: Tally XML API (₹0 if owned) OR Zoho Books (₹15k/year)  
 
 ❌ **Don't Use**: Raft.ai (₹10-15L/year)  
 ❌ **Don't Use**: Live IMPEX (₹8-12L/year)  
@@ -598,4 +760,6 @@ TOTAL YEAR 2+: ₹1L/year
 
 ---
 
-**Ready to implement? Start with Mindee free tier (250 docs/month) and ICEGATE registration this week.**
+**NEXT STEP**: Confirm with Ocean Transworld what they use for invoicing (Tally/Zoho/QuickBooks/Excel?), then finalize invoice integration approach.
+
+**Ready to implement? Start with Mindee free tier (250 docs/month) this week.**
